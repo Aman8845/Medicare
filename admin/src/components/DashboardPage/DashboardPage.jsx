@@ -1,0 +1,463 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { dashboardStyles as ds } from "../../assets/dummyStyles";
+import {
+  BadgeIndianRupee,
+  CalendarRange,
+  CheckCircle,
+  Search,
+  UserRoundCheck,
+  Users,
+  XCircle,
+} from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const PATIENT_COUNT_API = `${API_BASE}/api/appointments/patients/count`;
+
+//Helper function
+const safeNumber = (v, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+function normalizeDoctor(doc) {
+  const id = doc._id || doc.id || String(Math.random()).slice(2);
+  const name =
+    doc.name ||
+    doc.fullName ||
+    `${doc.firstName || ""} ${doc.lastName || ""}`.trim() ||
+    "Unknown";
+  const specialization =
+    doc.specialization ||
+    doc.speciality ||
+    (Array.isArray(doc.specializations)
+      ? doc.specializations.join(", ")
+      : "") ||
+    "General";
+  const fee = safeNumber(
+    doc.fee ?? doc.fees ?? doc.consultationFee ?? doc.consultation_fee ?? 0,
+    0,
+  );
+  const image =
+    doc.imageUrl ||
+    doc.image ||
+    doc.avatar ||
+    `https://i.pravatar.cc/150?u=${id}`;
+
+  const appointments = {
+    total:
+      doc.appointments?.total ??
+      doc.totalAppointments ??
+      doc.appointmentsTotal ??
+      0,
+    completed:
+      doc.appointments?.completed ??
+      doc.completedAppointments ??
+      doc.appointmentsCompleted ??
+      0,
+    canceled:
+      doc.appointments?.canceled ??
+      doc.canceledAppointments ??
+      doc.appointmentsCanceled ??
+      0,
+  };
+
+  let earnings = null;
+  if (doc.earnings !== undefined && doc.earnings !== null)
+    earnings = safeNumber(doc.earnings, 0);
+  else if (doc.revenue !== undefined && doc.revenue !== null)
+    earnings = safeNumber(doc.revenue, 0);
+  else if (appointments.completed && fee)
+    earnings = fee * safeNumber(appointments.completed, 0);
+  else earnings = 0;
+
+  return {
+    id,
+    name,
+    specialization,
+    fee,
+    image,
+    appointments,
+    earnings,
+    raw: doc,
+  };
+}
+
+const DashboardPage = () => {
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  //new patient count
+  const [patientCount, setPatientCount] = useState(null);
+  const [patientCountLoading, setPatientCountLoading] = useState(false);
+
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  //load doctors from the server
+  useEffect(() => {
+    let mounted = true;
+    async function loadDoctors() {
+      setLoading(true);
+      setError(null);
+      try {
+        const url = `${API_BASE}/api/doctors?limit=200`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(
+            body?.message || `Failed to fetch doctors (${res.status})`,
+          );
+        }
+        const body = await res.json();
+        let list = [];
+        if (Array.isArray(body)) list = body;
+        else if (Array.isArray(body.doctors)) list = body.doctors;
+        else if (Array.isArray(body.data)) list = body.data;
+        else if (Array.isArray(body.items)) list = body.items;
+        else {
+          const firstArray = Object.values(body).find((v) => Array.isArray(v));
+          if (firstArray) list = firstArray;
+        }
+        const normalized = list.map((d) => normalizeDoctor(d));
+        if (mounted) setDoctors(normalized);
+      } catch (err) {
+        console.error("Failed to load doctors:", err);
+        if (mounted) {
+          setError(err.message || "Failed to load doctors");
+          setDoctors([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadDoctors();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPatientCount() {
+      setPatientCountLoading(true);
+      try {
+        const res = await fetch(PATIENT_COUNT_API);
+        if (!res.ok) {
+          console.warn("Patient count fetch failed:", res.status);
+          if (mounted) setPatientCount(0);
+          return;
+        }
+
+        const body = await res.json().catch(() => ({}));
+        const count = Number(
+          body?.count ?? body?.totalUsers ?? body?.data ?? 0,
+        );
+        if (mounted) setPatientCount(isNaN(count) ? 0 : count);
+      } catch (err) {
+        console.error("Failed to fetch patient count:", err);
+        if (mounted) setPatientCount(0);
+      } finally {
+        if (mounted) setPatientCountLoading(false);
+      }
+    }
+    loadPatientCount();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const totals = useMemo(() => {
+    const totalDoctors = doctors.length;
+    const totalAppointments = doctors.reduce(
+      (s, d) => s + safeNumber(d.appointments?.total, 0),
+      0,
+    );
+    const totalEarnings = doctors.reduce(
+      (s, d) => s + safeNumber(d.earnings, 0),
+      0,
+    );
+    const completed = doctors.reduce(
+      (s, d) => s + safeNumber(d.appointments?.completed, 0),
+      0,
+    );
+    const canceled = doctors.reduce(
+      (s, d) => s + safeNumber(d.appointments?.canceled, 0),
+      0,
+    );
+    const totalLoginPatients =
+      doctors.reduce((s, d) => s + (d.raw?.loginPatientsCount ?? 0), 0) || 0;
+    return {
+      totalDoctors,
+      totalAppointments,
+      totalEarnings,
+      completed,
+      canceled,
+      totalLoginPatients,
+    };
+  }, [doctors]);
+
+  const filteredDoctors = useMemo(() => {
+    if (!query) return doctors;
+    const q = query.trim().toLowerCase();
+    const qNum = Number(q);
+    return doctors.filter((d) => {
+      if (d.name.toLowerCase().includes(q)) return true;
+      if ((d.specialization || "").toLowerCase().includes(q)) return true;
+      if (d.fee.toString().includes(q)) return true;
+      if (!Number.isNaN(qNum) && d.fee <= qNum) return true;
+      return false;
+    });
+  }, [doctors, query]);
+
+  const INITIAL_COUNT = 8;
+  const visibleDoctors = showAll
+    ? filteredDoctors
+    : filteredDoctors.slice(0, INITIAL_COUNT);
+
+  return (
+    <div className={ds.pageContainer}>
+      <div className={ds.maxWidthContainer}>
+        <div className={ds.headerContainer}>
+          <div>
+            <h1 className={ds.headerTitle}>Dashboard</h1>
+            <p className={ds.headerSubtitle}>
+              Overview of doctors & appointments
+            </p>
+          </div>
+        </div>
+
+        {/* stats section */}
+        <div className={ds.statsGrid}>
+          <StatCard
+            icon={<Users className="w-6 h-6" />}
+            label="Total Doctors"
+            value={totals.totalDoctors}
+          />
+
+          <StatCard
+            icon={<UserRoundCheck className="w-6 h-6" />}
+            label="Total Registered Patients"
+            value={
+              patientCountLoading
+                ? "Loading..."
+                : (patientCount ?? totals.totalLoginPatients)
+            }
+          />
+
+          <StatCard
+            icon={<CalendarRange className="w-6 h-6" />}
+            label="Total Appointments"
+            value={totals.totalAppointments}
+          />
+
+          <StatCard
+            icon={<BadgeIndianRupee className="w-6 h-6" />}
+            label="Total Earnings"
+            value={`₹ ${totals.totalEarnings.toLocaleString()}`}
+          />
+
+          <StatCard
+            icon={<CheckCircle className="w-6 h-6" />}
+            label="Completed Appointments"
+            value={totals.completed}
+          />
+
+          <StatCard
+            icon={<XCircle className="w-6 h-6" />}
+            label="Canceled Appointments"
+            value={totals.canceled}
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className={ds.searchLabel}>Search Doctors</label>
+          <div className={ds.searchContainer}>
+            <div className={ds.searchInputContainer}>
+              <input
+                type="text"
+                className={ds.searchInput}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search name or specialization"
+              />
+              <Search className={ds.searchIcon} />
+            </div>
+            <button
+              onClick={() => {
+                setQuery("");
+                setShowAll(false);
+              }}
+              className={ds.clearButton + " " + ds.cursorPointer}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div className={ds.tableContainer}>
+          <div className={ds.tableHeader}>
+            <h2 className={ds.tableTitle}>Doctors</h2>
+            <p className={ds.tableCount}>
+              {loading
+                ? "Loading..."
+                : `Showing ${visibleDoctors.length} of ${filteredDoctors.length} doctors`}
+            </p>
+          </div>
+          {error && (
+            <div className={ds.errorContainer}>
+              Error loading doctors: {error}
+            </div>
+          )}
+
+          <div className={ds.tableWrapper}>
+            <table className={ds.table}>
+              <thead className={ds.tableHead}>
+                <tr>
+                  <th className={ds.tableHeaderCell}>Doctor</th>
+                  <th className={ds.tableHeaderCell}>Specialization</th>
+                  <th className={ds.tableHeaderCell}>Fee</th>
+                  <th className={ds.tableHeaderCell}>Appointments</th>
+                  <th className={ds.tableHeaderCell}>Completed</th>
+                  <th className={ds.tableHeaderCell}>Canceled</th>
+                  <th className={ds.tableHeaderCell}>Total Earnings</th>
+                </tr>
+              </thead>
+
+              <tbody className={ds.tableBody}>
+                {visibleDoctors.map((d, idx) => (
+                  <tr
+                    key={d.id}
+                    className={
+                      ds.tableRow +
+                      " " +
+                      (idx % 2 === 0 ? ds.tableRowEven : ds.tableRowOdd)
+                    }
+                  >
+                    <td className={ds.tableCell + " " + ds.tableCellFlex}>
+                      <div className={ds.verticalLine} />
+                      <img
+                        src={d.image}
+                        alt={d.name}
+                        className={ds.doctorImage}
+                      />
+                      <div>
+                        <div className={ds.doctorName}>{d.name}</div>
+                        {/* <div className={ds.doctorId}>ID: {d.id}</div> */}
+                      </div>
+                    </td>
+
+                    <td
+                      className={ds.tableCell + " " + ds.doctorSpecialization}
+                    >
+                      {d.specialization}
+                    </td>
+
+                    <td className={ds.tableCell + " " + ds.feeText}>
+                      ₹ {d.fee}
+                    </td>
+
+                    <td className={ds.tableCell + " " + ds.appointmentsText}>
+                      {d.appointments.total}
+                    </td>
+
+                    <td className={ds.tableCell + " " + ds.completedText}>
+                      {d.appointments.completed}
+                    </td>
+
+                    <td className={ds.tableCell + " " + ds.canceledText}>
+                      {d.appointments.canceled}
+                    </td>
+
+                    <td className={ds.tableCell + " " + ds.earningsText}>
+                      ₹ {d.earnings.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={ds.mobileDoctorContainer}>
+            <div className={ds.mobileDoctorCard}>
+              {visibleDoctors.map((d) => (
+                <MobileDoctorCard key={d.id} d={d} />
+              ))}
+            </div>
+          </div>
+
+          {filteredDoctors.length > INITIAL_COUNT && (
+            <div className={ds.showMoreContainer}>
+              <button
+                className={ds.showMoreButton + " " + ds.cursorPointer}
+                onClick={() => setShowAll((s) => !s)}
+              >
+                {showAll ? "Show less" : `Show more (${filteredDoctors.length - INITIAL_COUNT})`}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardPage;
+
+function StatCard({ icon, value, label }) {
+  return (
+    <div className={ds.statCard}>
+      <div className={ds.statCardContent}>
+        <div className={ds.statIconContainer}>{icon}</div>
+        <div className="flex-1">
+          <div className={ds.statLabel}>{label}</div>
+          <div className={ds.statValue}>{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileDoctorCard({ d }) {
+  return (
+    <div className={ds.mobileDoctorCard}>
+      <div className={ds.mobileDoctorHeader}>
+        <div className="flex items-center gap-3">
+          <img src={d.image} alt={d.name} className={ds.mobileDoctorImage} />
+          <div>
+            <div className={ds.mobileDoctorName}>{d.name}</div>
+            <div className={ds.mobileDoctorSpecialization}>
+              {d.specialization}
+            </div>
+          </div>
+        </div>
+        <div className={ds.mobileDoctorFee}>₹ {d.fee}</div>
+      </div>
+      <div className={ds.mobileStatsGrid}>
+        <div>
+          <div className={ds.mobileStatLabel}>Appts</div>
+          <div className={ds.mobileStatValue}>{d.appointments.total}</div>
+        </div>
+
+        <div>
+          <div className={ds.mobileStatLabel}>Done</div>
+          <div className={ds.mobileStatValue + " " + ds.textEmerald600}>
+            {d.appointments.completed}
+          </div>
+        </div>
+
+        <div>
+          <div className={ds.mobileStatLabel}>Cancel</div>
+          <div className={ds.mobileStatValue + " " + ds.textRose500}>
+            {d.appointments.canceled}
+          </div>
+        </div>
+      </div>
+
+      <div className={ds.mobileEarningsContainer}>
+        <div>Earned</div>
+        <div className="font-semibold">₹ {d.earnings.toLocaleString()}</div>
+      </div>
+    </div>
+  );
+}
