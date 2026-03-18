@@ -315,7 +315,7 @@ const ListPage = () => {
                         </button>
 
                         <div className={l.feesLabel}>Fees:</div>
-                        <div className={l.feesValue}>₹{doc.fees}</div>
+                        <div className={l.feesValue}>₹{doc.fee}</div>
                       </div>
                     </div>
                   </div>

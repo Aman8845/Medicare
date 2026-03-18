@@ -4,6 +4,7 @@ import {
   deleteFromCloudinary,
 } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 //Helper functions
 //convert time 12hrs to number of minutes since midnight
@@ -75,7 +76,7 @@ export async function createDoctor(req, res) {
       });
     }
 
-    const emailLC = (body.email || "").toLowerCase();
+    const emailLC = body.email.toLowerCase();
     if (await Doctor.findOne({ email: emailLC })) {
       return res
         .status(409)
@@ -90,10 +91,12 @@ export async function createDoctor(req, res) {
       imagePublicId = upload?.public_id || upload?.publicId || imagePublicId;
     }
 
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+
     const schedule = parseScheduleInput(body.schedule);
     const doc = new Doctor({
       email: emailLC,
-      password: body.password,
+      password: hashedPassword,
       name: body.name,
       specialization: body.specialization || "",
       imageUrl,
@@ -119,10 +122,12 @@ export async function createDoctor(req, res) {
         .json({ success: false, message: "Server configuration error" });
     }
 
+    const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
+
     const token = jwt.sign(
       { id: doc._id.toString(), email: doc.email, role: "doctor" },
       secret,
-      { expiresIn: "7d" },
+      { expiresIn },
     );
 
     const out = normalizeDocForClient(doc.toObject());
@@ -348,8 +353,7 @@ export async function updateDoctor(req, res) {
 export async function deleteDoctor(req, res) {
   try {
     const { id } = req.params;
-
-    if (!req.doctor || String(req.doctor._id || req.doctor.id) !== String(id)) {
+     if (!req.doctor || String(req.doctor._id || req.doctor.id) !== String(id)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this doctor",
@@ -365,7 +369,11 @@ export async function deleteDoctor(req, res) {
     }
 
     if (existing.imagePublicId) {
-      await deleteFromCloudinary(existing.imagePublicId).catch(() => {});
+      try {
+        await deleteFromCloudinary(existing.imagePublicId);
+      } catch (e) {
+        console.warn("Delete from cloudinary", e?.message || e);
+      }
     }
 
     await Doctor.findByIdAndDelete(id);
@@ -381,6 +389,7 @@ export async function deleteDoctor(req, res) {
     });
   }
 }
+
 // to toggle availability
 export async function toggleAvailability(req, res) {
   try {
