@@ -13,9 +13,9 @@ const app = express();
 const port = 4000;
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.ADMIN_URL,
-].filter(Boolean);
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
 
 // Middleware
 app.use(
@@ -54,11 +54,11 @@ app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
 
-// Only call listen in local dev — Vercel handles this in production
-if (process.env.NODE_ENV !== "production") {
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-  });
-}
+// // Only call listen in local dev — Vercel handles this in production
+// if (process.env.NODE_ENV !== "production") {
+//   app.listen(port, () => {
+//     console.log(`Server is running on port ${port}`);
+//   });
+// }
 
-export default app;
+// export default app;
