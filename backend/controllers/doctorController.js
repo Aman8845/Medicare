@@ -336,7 +336,9 @@ export async function updateDoctor(req, res) {
       existing.email = body.email.toLowerCase();
     }
 
-    if (body.password) existing.password = body.password;
+    if (body.password) {
+      existing.password = await bcrypt.hash(body.password, 10);
+    }
 
     await existing.save();
 
@@ -442,7 +444,8 @@ export async function loginDoctor(req, res) {
         .status(401)
         .json({ success: false, message: "Invalid email or password" });
     }
-    if (doc.password !== password) {
+    const isMatch = await bcrypt.compare(password, doc.password);
+    if (!isMatch) {
       return res
         .status(401)
         .json({ success: false, message: "Invalid email or password" });

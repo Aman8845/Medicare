@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 const STORAGE_KEY = "doctorToken_v1";
 
 const LoginPage = () => {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL;
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
   
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [busy, setBusy] = useState(false);
@@ -32,7 +32,8 @@ const LoginPage = () => {
 
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/api/doctors/login`, {
+      const baseUrl = API_BASE || "";
+      const res = await fetch(`${baseUrl}/api/doctors/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -73,6 +74,7 @@ const LoginPage = () => {
     } catch (err) {
       console.error("login error", err);
       toast.error("Network error during login");
+      setBusy(false);
     }
   };
 
