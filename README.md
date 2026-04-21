@@ -258,6 +258,9 @@ The system is designed modularly to serve both patients and medical staff. Below
   }
   ```
 
+### Entity Relationship Diagram
+![Hospital System ER Diagram](er_diagram.png)
+
 ### Quick Feature Summary
 - **Patient UI**: searchable doctors/services, detail pages, booking calendar, form validation, notifications, mobile responsive.
 - **Admin UI**: secure doctor login, profile and service CRUD, appointment dashboard with status controls.
@@ -266,6 +269,21 @@ The system is designed modularly to serve both patients and medical staff. Below
 - **Deployment**: independent builds, env vars for API, MongoDB, JWT, Cloudinary and optional keys.
 - **Development**: ESLint for linting, placeholders for tests, Git branching workflow.
 - **Extras**: payment gateway hooks, analytics placeholders, extensible design for future features.
+
+## ✅ Advantages
+- **Modular architecture**: separates `backend`, `frontend`, and `admin` into independent, maintainable projects.
+- **Role-aware design**: supports both patient-facing booking and doctor/admin management with distinct interfaces.
+- **Scalable API**: uses Express and MongoDB with clean route/controller separation and JWT authentication.
+- **Cloudinary image support**: manages profile and service image uploads without local storage complexity.
+- **Booking protection**: prevents double-booking via backend availability checks.
+- **Flexible deployment**: each app can be built and deployed independently.
+
+## ⚠️ Limitations
+- **No patient authentication**: patient users cannot sign in or manage their booking history yet.
+- **No automated tests**: the repository currently lacks unit/integration test coverage.
+- **Basic UX polish**: UI and responsiveness are functional but may need further design refinement.
+- **No notification system**: appointment status changes are not automatically sent via email/SMS.
+- **Manual schema updates**: MongoDB migration tooling is not implemented, so schema changes require manual handling.
 
 
 #### 5. Deployment & Environment
@@ -280,11 +298,29 @@ The system is designed modularly to serve both patients and medical staff. Below
 
 #### 7. Future Directions
 - Implement patient login and profile management.
+  - Add patient registration, secure authentication, and password reset flows.
+  - Build a patient dashboard for booking history, appointment status, and personal details.
+  - Enable patients to cancel or reschedule appointments from the frontend.
 - Add email/SMS notifications using services like SendGrid/Twilio.
+  - Send booking confirmations, reminders, and status updates automatically.
+  - Notify doctors of new appointments or appointment cancellations.
+  - Include configurable notification templates and delivery preferences.
 - Expand payment features to include refunds, invoices, and multi-currency support.
+  - Integrate a real payments gateway such as Stripe or Razorpay.
+  - Record payment status in appointment records and display receipts to users.
+  - Support invoice generation and full refund workflows for cancellations.
 - Introduce role-based access control (e.g., admins vs doctors).
-- Multi-language/localization support for patient interface.
-- Offline-first capabilities or PWA behavior for mobile.
+  - Add an admin role with broader management capabilities beyond doctor accounts.
+  - Restrict sensitive operations to authorized roles only.
+  - Create admin UI screens for user management, system settings, and audit logs.
+- Add multi-language/localization support for the patient interface.
+  - Localize text, labels, and messages across the frontend.
+  - Support automatic locale detection and manual language switching.
+  - Prepare the codebase for region-specific formatting and translations.
+- Add offline-first capabilities or PWA behavior for mobile.
+  - Improve usability for intermittent network connections.
+  - Cache key assets, booking forms, and appointment data locally.
+  - Enable installable PWA support for patients and doctors.
 
 > 💡 Every component, controller, and route is meant to be easily extended; the codebase follows standard conventions so new developers can jump in quickly.
 
