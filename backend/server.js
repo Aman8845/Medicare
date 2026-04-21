@@ -9,7 +9,7 @@ import serviceRouter from "./routes/serviceRouter.js";
 import appointmentRouter from "./routes/appointmentRouter.js";
 import serviceAppointmentRouter from "./routes/serviceAppointmentRouter.js";
 
-/* works when I add this */
+/* important to add this */
 import dns from "node:dns/promises";   
 dns.setServers(["1.1.1.1", "1.0.0.1"]);
 
@@ -19,8 +19,8 @@ const port = 4000;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  process.env.FRONTEND_URL,
-  process.env.ADMIN_URL,
+  process.env.FRONTEND_URL?.replace(/\/$/, ''),
+  process.env.ADMIN_URL?.replace(/\/$/, ''),
 ];
 
 // Middleware
@@ -28,6 +28,7 @@ app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
+      origin = origin.replace(/\/$/, ''); // remove trailing slash
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
