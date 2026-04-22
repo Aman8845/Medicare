@@ -9,7 +9,7 @@ import {
 import axios from "axios";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Toaster } from "react-hot-toast";
-import { Bell, CalendarDays, Clock, CreditCard, Wallet, XCircle } from "lucide-react";
+import { Bell, CalendarDays, CheckCircle, Clock, CreditCard, Wallet, XCircle } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const API = axios.create({ baseURL: API_BASE });
