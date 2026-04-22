@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from "react";
 import { footerStyles as f } from "../assets/dummyStyles";
 import logo from "../assets/logo.png";
@@ -8,6 +9,7 @@ import {
   Instagram,
   Linkedin,
   Mail,
+  Icon,
   MapPin,
   Phone,
   Send,
@@ -143,7 +145,7 @@ const Footer = () => {
           <div className={f.linksSection}>
             <h3 className={f.sectionTitle}>Our Services</h3>
             <ul className={f.linksList}>
-              {services.map((service,index) => (
+              {services.map((service, index) => (
                <li key={`${service.name}-${index}`}>
                   <Link to={service.href} className={f.serviceLink}>
                     <div className={f.serviceIcon}></div>

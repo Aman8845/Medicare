@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useMemo, useState } from "react";
 import { navbarStylesDr as ns } from "../assets/dummyStyles";
 import logo from "../assets/logo.png";

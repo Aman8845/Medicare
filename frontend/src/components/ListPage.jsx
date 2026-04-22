@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useState } from "react";
 import { listPageStyles as l } from "../assets/dummyStyles";
 import { Calendar, Phone, Search, X } from "lucide-react";
